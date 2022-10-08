@@ -97,6 +97,30 @@ impl TestedDialects {
         only_statement
     }
 
+    /// Ensures that `sql` parses as a single statement and returns it.
+    /// If non-empty `canonical` SQL representation is provided,
+    /// additionally asserts that parsing `sql` results in the same parse
+    /// tree as parsing `canonical`, and that serializing it back to string
+    /// results in the `canonical` representation.
+    pub fn one_statement_parses_to_result(&self, sql: &str, canonical: &str) -> Result<Statement, ParserError> {
+        let mut statements = match self.parse_sql_statements(sql) {
+            Ok(stms) => stms,
+            Err(e) => return Err(e)
+        };
+
+        assert_eq!(statements.len(), 1);
+
+        if !canonical.is_empty() && sql != canonical {
+            assert_eq!(self.parse_sql_statements(canonical).unwrap(), statements);
+        }
+
+        let only_statement = statements.pop().unwrap();
+        if !canonical.is_empty() {
+            assert_eq!(canonical, only_statement.to_string())
+        }
+        Ok(only_statement)
+    }
+
     /// Ensures that `sql` parses as a single [Statement], and is not modified
     /// after a serialization round-trip.
     pub fn verified_stmt(&self, query: &str) -> Statement {

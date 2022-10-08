@@ -92,6 +92,34 @@ fn parse_table_identifiers() {
     // test_table_ident_err("GROUP.dataField");
 
     test_table_ident("abc5.GROUP", vec![Ident::new("abc5"), Ident::new("GROUP")]);
+
+    test_table_ident(
+        "project_id.dataset.table",
+        vec![Ident::new("project_id"), Ident::new("dataset"), Ident::new("table")]
+    );
+
+    test_table_ident(
+        "project-id.dataset.table",
+        vec![Ident::new("project-id"), Ident::new("dataset"), Ident::new("table")]
+    );
+
+    test_table_ident(
+        "`project.id`.dataset.`table-1`",
+        vec![
+            Ident::with_quote('`', "project.id"),
+            Ident::new("dataset"),
+            Ident::with_quote('`', "table-1")
+        ]
+    );
+
+    test_table_ident(
+        "`project-id.dataset.table-1`",
+        vec![
+            Ident::with_quote('`', "project-id.dataset.table-1"),
+        ]
+    );
+
+    test_table_ident_err("dataset_1.table-a");
 }
 
 #[test]
@@ -104,6 +132,8 @@ fn parse_trailing_comma() {
         ("SELECT a, b, FROM t", "SELECT a, b FROM t"),
         ("SELECT a, b, LIMIT 1", "SELECT a, b LIMIT 1"),
         ("SELECT a, (SELECT 1, )", "SELECT a, (SELECT 1)"),
+        ("SELECT a.a, a.b, FROM a", "SELECT a.a, a.b FROM a"),
+        ("SELECT a, b, FROM `table-a`", "SELECT a, b FROM `table-a`"),
     ] {
         bigquery().one_statement_parses_to(sql, canonical);
     }

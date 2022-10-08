@@ -18,6 +18,9 @@
 //! sqlparser regardless of the chosen dialect (i.e. it doesn't conflict with
 //! dialect-specific parsing rules).
 
+use std::path::PathBuf;
+use pretty_assertions;
+
 use matches::assert_matches;
 
 use sqlparser::ast::SelectItem::UnnamedExpr;
@@ -31,6 +34,7 @@ use sqlparser::parser::{Parser, ParserError};
 use test_utils::{
     all_dialects, assert_eq_vec, expr_from_projection, join, number, only, table, table_alias,
     TestedDialects,
+    testfile,
 };
 
 #[macro_use]
@@ -5504,6 +5508,10 @@ fn one_statement_parses_to(sql: &str, canonical: &str) -> Statement {
     all_dialects().one_statement_parses_to(sql, canonical)
 }
 
+fn one_statement_parses_to_result(sql: &str, canonical: &str) -> Result<Statement, ParserError>{
+    all_dialects().one_statement_parses_to_result(sql, canonical)
+}
+
 fn verified_stmt(query: &str) -> Statement {
     all_dialects().verified_stmt(query)
 }
@@ -6051,4 +6059,15 @@ fn parse_uncache_table() {
         ParserError::ParserError("Expected a `TABLE` keyword, found: IF".to_string()),
         res.unwrap_err()
     );
+}
+
+#[test]
+fn parse_testdata_aggregation() {
+    let testdata = PathBuf::from("tests/queries/testdata/common/aggregation.test");
+    let reader = testfile::TestFileReader::new(testdata.to_str().unwrap());
+
+    for testcase in reader {
+        let result = one_statement_parses_to_result(&testcase.sql, &testcase.canonical);
+        pretty_assertions::assert_eq!(result, testcase.expected);
+    }
 }

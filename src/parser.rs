@@ -33,7 +33,12 @@ use crate::dialect::*;
 use crate::keywords::{self, Keyword};
 use crate::tokenizer::*;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ParserError {
     TokenizerError(String),
     ParserError(String),

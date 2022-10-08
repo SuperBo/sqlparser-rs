@@ -32,3 +32,115 @@ macro_rules! nest {
         }), alias: None}
     };
 }
+
+
+#[cfg(test)]
+pub mod testfile {
+    use std::fs::{File, OpenOptions};
+    use std::io::{BufRead, BufReader, Lines};
+    use serde_lexpr;
+    use sqlparser::ast::Statement;
+    use sqlparser::parser::ParserError;
+
+    pub struct TestCase {
+        pub sql: String,
+        pub canonical: String,
+        pub expected: Result<Statement, ParserError>
+    }
+
+    impl TestCase {
+        fn new(sql: &str, canonical: &str, result: &str, line_start: u32, line_end: u32) -> Self {
+            Self {
+                sql: String::from(sql),
+                canonical: String::from(canonical.trim()),
+                expected: serde_lexpr::from_str(result).unwrap_or_else(
+                    |e| panic!(
+                        "Deserialize error in block from line {} to {}.\nERROR: {}{}",
+                        line_start, line_end, e, result
+                    )
+                ),
+            }
+        }
+    }
+
+    pub struct TestFileReader {
+        line_number: u32,
+        lines: Lines<BufReader<File>>,
+    }
+
+    impl TestFileReader {
+        pub fn new(testfile_path: &str) -> Self {
+            let testfile = OpenOptions::new().read(true).open(testfile_path)
+                .unwrap_or_else(|_| panic!("Can't open file {} error!", testfile_path));
+            Self {
+                line_number: 0,
+                lines: BufReader::new(testfile).lines(),
+            }
+        }
+    }
+
+    impl Iterator for TestFileReader {
+        type Item = TestCase;
+
+        fn next(&mut  self) -> Option<Self::Item> {
+            let mut sql = String::new();
+            let mut ast = String::new();
+            let mut canonical = String::new();
+
+            let mut mode: u8 = 0;
+            let line_start = self.line_number;
+            loop {
+                self.line_number += 1;
+                match self.lines.next() {
+                    Some(Ok(line_str)) if line_str.starts_with("#") | line_str.is_empty() => {
+                        // ignore comments and blank line
+                        continue;
+                    },
+                    Some(Ok(line_str)) if line_str.starts_with("--") => {
+                        // separator between sql, ast and  canonical
+                        if mode < 2 {
+                            mode += 1;
+                        }
+                    },
+                    Some(Ok(line_str)) if line_str.starts_with("==") => {
+                        // separator between two testcases
+                        break;
+                    },
+                    Some(Ok(line_str)) => {
+                        if mode == 0 {
+                            sql.push('\n');
+                            sql.push_str(&line_str);
+                        }
+                        else if mode == 1 {
+                            ast.push('\n');
+                            ast.push_str(&line_str);
+                        }
+                        else {
+                            let line_str = line_str.trim();
+                            if line_str.starts_with(")") && canonical.chars().last().unwrap() == ' ' {
+                                canonical.pop();
+                            }
+                            canonical.push_str(&line_str);
+                            if !line_str.ends_with("(") {
+                                canonical.push(' ');
+                            }
+                        }
+                    },
+                    Some(Err(_)) => {
+                        panic!("Error while reading testfile");
+                    },
+                    None => {
+                        if mode < 2 {
+                            return None;
+                        }
+                        else {
+                            break;
+                        }
+                    },
+                }
+            }
+
+            Some(TestCase::new(&sql, &canonical, &ast, line_start, self.line_number))
+        }
+    }
+}

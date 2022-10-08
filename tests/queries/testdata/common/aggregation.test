@@ -1,0 +1,213 @@
+# Adopt from zetasql parser
+
+select f1, f2 from T where f1=f2 group by f1
+--
+(Ok
+  Query
+  (body Select
+    (projection (UnnamedExpr Identifier (value . "f1")) (UnnamedExpr Identifier (value . "f2") ))
+    (from ((relation Table (name ((value . "T") ))) ))
+    (selection (BinaryOp (left Identifier (value . "f1") ) (op . Eq) (right Identifier (value . "f2") )))
+    (group_by (Identifier (value . "f1")))
+  )
+)
+--
+SELECT
+  f1, f2
+FROM T
+WHERE f1 = f2 GROUP BY f1
+==
+
+select f1, f2 from T group by f1, f2, 1, 2
+--
+(Ok
+  Query
+  (body Select
+    (projection (UnnamedExpr Identifier (value . "f1")) (UnnamedExpr Identifier (value . "f2")))
+    (from ((relation Table (name ((value . "T"))))))
+    (group_by
+      (Identifier (value . "f1")) (Identifier (value . "f2"))
+      (Value Number "1" #f) (Value Number "2" #f)
+    )
+  )
+)
+--
+SELECT
+  f1,
+  f2
+FROM
+  T
+GROUP BY f1, f2, 1, 2
+==
+
+select f1 from T group by f1 having f1 < 5;
+--
+(Ok
+  Query
+  (body Select
+    (projection (UnnamedExpr Identifier (value . "f1")))
+    (from ((relation Table (name ((value . "T"))))))
+    (group_by (Identifier (value . "f1")))
+    (having (BinaryOp (left Identifier (value . "f1")) (op . Lt) (right Value Number "5" #f)))
+  )
+)
+--
+SELECT
+  f1
+FROM
+  T
+GROUP BY f1
+HAVING f1 < 5
+==
+
+select f1, sum(f2) from T group by f1 having f1 = 3 and sum(f2) > 5;
+--
+(Ok
+  Query
+  (body
+    Select
+    (projection
+      (UnnamedExpr Identifier (value . "f1"))
+      (UnnamedExpr Function (name ((value . "sum"))) (args (Unnamed Expr Identifier (value . "f2"))))
+    )
+    (from ((relation Table (name ((value . "T"))))))
+    (group_by (Identifier (value . "f1")))
+    (having
+      (BinaryOp
+        (left BinaryOp (left Identifier (value . "f1")) (op . Eq) (right Value Number "3" #f) )
+        (op . And)
+        (right
+          BinaryOp
+          (left Function (name ((value . "sum"))) (args (Unnamed Expr Identifier (value . "f2"))))
+          (op . Gt)
+          (right Value Number "5" #f)
+        )
+      )
+    )
+  )
+)
+--
+SELECT
+  f1,
+  sum(f2)
+FROM
+  T
+GROUP BY f1
+HAVING f1 = 3 AND sum(f2) > 5
+==
+
+select max(true) as a from T having a;
+--
+(Ok
+  Query
+  (body
+    Select
+    (projection
+      (ExprWithAlias
+        (expr Function
+          (name ((value . "max")))
+          (args (Unnamed Expr Value Boolean . #t))
+        )
+        (alias (value . "a"))
+      )
+    )
+    (from ((relation Table (name ((value . "T"))))))
+    (having (Identifier (value . "a")))
+  )
+)
+--
+SELECT
+  max(true) AS a
+FROM
+  T
+HAVING a
+==
+
+select sum(f1) as a from T having true;
+--
+(Ok
+  Query
+  (body
+    Select
+    (projection
+      (ExprWithAlias
+        (expr Function
+          (name ((value . "sum")))
+          (args (Unnamed Expr Identifier (value . "f1")))
+        )
+        (alias (value . "a"))
+      )
+    )
+    (from ((relation Table (name ((value . "T"))))))
+    (having (Value Boolean . #t))
+  )
+)
+--
+SELECT
+  sum(f1) AS a
+FROM
+  T
+HAVING true
+==
+
+select sum(f1) as a from T having a > 5 having a > 5;
+--
+(Err ParserError . "Expected end of statement, found: having")
+==
+
+select * from (select a from T having a > 5);
+--
+(Ok
+  Query
+  (body
+    Select
+    (projection Wildcard)
+    (from (
+      (relation
+        Derived
+        (subquery
+          (body
+            Select
+            (projection (UnnamedExpr Identifier (value . "a")))
+            (from ((relation Table (name ((value . "T")))))) 
+            (having
+              (BinaryOp
+                (left Identifier (value . "a"))
+                (op . Gt)
+                (right Value Number "5" #f)
+              )
+            )
+          )
+        )
+      )
+    ))
+  )
+)
+--
+SELECT
+  *
+FROM
+  (
+   SELECT
+      a
+    FROM
+      T
+    HAVING a > 5
+  )
+==
+
+select array_agg(x order by x) as a from T;
+--
+(Ok
+  Query
+  (body
+    Select
+    (projection Wildcard)
+    (from ((relation Table (name ((value . "T")))))) 
+  )
+)
+--
+SELECT
+  array_agg(x ORDER BY x) AS a
+FROM
+  T

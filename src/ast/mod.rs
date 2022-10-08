@@ -2777,12 +2777,15 @@ impl fmt::Display for CloseCursor {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Function {
     pub name: ObjectName,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub args: Vec<FunctionArg>,
     pub over: Option<WindowSpec>,
     // aggregate functions may specify eg `COUNT(DISTINCT x)`
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     pub distinct: bool,
     // Some functions must be called without trailing parentheses, for example Postgres
     // do it for current_catalog, current_schema, etc. This flags is used for formatting.
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     pub special: bool,
 }
 

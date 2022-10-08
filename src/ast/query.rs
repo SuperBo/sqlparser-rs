@@ -28,6 +28,7 @@ pub struct Query {
     /// SELECT or UNION / EXCEPT / INTERSECT
     pub body: Box<SetExpr>,
     /// ORDER BY
+    #[cfg_attr(feature = "serde", serde(default))]
     pub order_by: Vec<OrderByExpr>,
     /// `LIMIT { <N> | ALL }`
     pub limit: Option<Expr>,
@@ -131,6 +132,7 @@ impl fmt::Display for SetOperator {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Select {
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     pub distinct: bool,
     /// MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
     pub top: Option<Top>,
@@ -141,16 +143,21 @@ pub struct Select {
     /// FROM
     pub from: Vec<TableWithJoins>,
     /// LATERAL VIEWs
+    #[cfg_attr(feature = "serde", serde(default))]
     pub lateral_views: Vec<LateralView>,
     /// WHERE
     pub selection: Option<Expr>,
     /// GROUP BY
+    #[cfg_attr(feature = "serde", serde(default))]
     pub group_by: Vec<Expr>,
     /// CLUSTER BY (Hive)
+    #[cfg_attr(feature = "serde", serde(default))]
     pub cluster_by: Vec<Expr>,
     /// DISTRIBUTE BY (Hive)
+    #[cfg_attr(feature = "serde", serde(default))]
     pub distribute_by: Vec<Expr>,
     /// SORT BY (Hive)
+    #[cfg_attr(feature = "serde", serde(default))]
     pub sort_by: Vec<Expr>,
     /// HAVING
     pub having: Option<Expr>,
@@ -314,6 +321,7 @@ impl fmt::Display for SelectItem {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TableWithJoins {
     pub relation: TableFactor,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub joins: Vec<Join>,
 }
 
@@ -343,9 +351,11 @@ pub enum TableFactor {
         /// whereas it's `None` in the case of a regular table name.
         args: Option<Vec<FunctionArg>>,
         /// MSSQL-specific `WITH (...)` hints such as NOLOCK.
+        #[cfg_attr(feature = "serde", serde(default))]
         with_hints: Vec<Expr>,
     },
     Derived {
+        #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
         lateral: bool,
         subquery: Box<Query>,
         alias: Option<TableAlias>,
